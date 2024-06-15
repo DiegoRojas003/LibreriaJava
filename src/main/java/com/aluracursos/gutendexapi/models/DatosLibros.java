@@ -9,7 +9,7 @@ import java.util.List;
 public record DatosLibros(
         @JsonAlias("title") String titulo,
         @JsonAlias("authors")List<DatosAutor> autor,
-        @JsonAlias("languajes")List<String> lenguajes,
+        @JsonAlias("languages")List<String> lenguajes,
         @JsonAlias("download_count")Double numeroDescargas
 ) {
     @Override
@@ -20,4 +20,5 @@ public record DatosLibros(
                 ", Lenguajes:" + lenguajes +
                 ",y el numero de descargas: " + numeroDescargas;
     }
+
 }

@@ -14,18 +14,23 @@ public class Autor {
     private String nombre;
     private String fechaDeNacimiento;
     private String fechaDeMuerte;
-    @ManyToMany(mappedBy = "autores")
+    @OneToMany(mappedBy = "autor",cascade = CascadeType.ALL,fetch = FetchType.EAGER)
     private List<Libro> libros;
     public Autor(){
 
     }
-
     public Autor(long id, String nombre, String fechaDeNacimiento, String fechaDeMuerte, List<Libro> libros) {
         this.id = id;
         this.nombre = nombre;
         this.fechaDeNacimiento = fechaDeNacimiento;
         this.fechaDeMuerte = fechaDeMuerte;
         this.libros = libros;
+    }
+
+    public Autor(DatosAutor datosAutor) {
+        this.nombre=datosAutor.nombre();
+        this.fechaDeNacimiento=datosAutor.fechaDeNacimiento();
+        this.fechaDeMuerte=datosAutor.fechaDeMuerte();
     }
 
     public long getId() {
@@ -66,5 +71,14 @@ public class Autor {
 
     public void setLibros(List<Libro> libros) {
         this.libros = libros;
+    }
+
+    @Override
+    public String toString() {
+        return  "-------LIBRO-------"+"\n" +
+                "Titulo:" + nombre + "\n" +
+                "Fecha Nacimiento:" + fechaDeNacimiento + '\n' +
+                "Fecha de muerte:" + fechaDeMuerte + '\n' +
+                "-------------------"+"\n";
     }
 }

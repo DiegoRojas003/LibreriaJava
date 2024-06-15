@@ -1,5 +1,6 @@
 package com.aluracursos.gutendexapi.principal;
 
+import com.aluracursos.gutendexapi.models.Autor;
 import com.aluracursos.gutendexapi.models.Datos;
 import com.aluracursos.gutendexapi.models.DatosLibros;
 import com.aluracursos.gutendexapi.models.Libro;
@@ -7,7 +8,6 @@ import com.aluracursos.gutendexapi.repository.AutorRepository;
 import com.aluracursos.gutendexapi.repository.LibroRepository;
 import com.aluracursos.gutendexapi.service.ConsumoAPI;
 import com.aluracursos.gutendexapi.service.ConvierteDatos;
-import com.aluracursos.gutendexapi.service.LibroService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -17,7 +17,6 @@ public class Principal {
     private ConsumoAPI consumoAPI = new ConsumoAPI();
     private ConvierteDatos conversor= new ConvierteDatos();
     private Vista vista= new Vista();
-    private LibroService libroService= new LibroService();
     private LibroRepository libroRepository;
     private AutorRepository autorRepository;
     private Scanner teclado= new Scanner(System.in);
@@ -26,8 +25,9 @@ public class Principal {
     private static final String URL_BUSQUEDA="http://gutendex.com/books/?search=";
 
     //VARIABLES Y LISTAS DE OBJETOS
-    List<DatosLibros> ListaLibros;
-
+    List<DatosLibros> ListaDatosLibros = new ArrayList<>();
+    List<Libro> listaLibros = new ArrayList<>();
+    List<Autor> listaAutores = new ArrayList<>();
     public Principal(LibroRepository libroRepository,AutorRepository autorRepository) {
         this.libroRepository=libroRepository;
         this.autorRepository=autorRepository;
@@ -35,71 +35,159 @@ public class Principal {
     public void mostrarMenu(){
         int opcion=10;
         while (opcion != 0){
-            opcion=vista.menuPrincipal();
-            switch (opcion){
-                case 1:
-                    consumirApi();
-                    break;
-                case 2:
-                    break;
-                default:
-                    System.out.println("Error, ingrese una opción valida");
-                    break;
+            try{
+                opcion=vista.menuPrincipal();
+                switch (opcion){
+                    case 1:
+                        consumirApi();
+                        break;
+                    case 2:
+                        mostrarTodosLosLibros();
+                        break;
+                    case 3:
+                        mostrarTodosLosAutores();
+                        break;
+                    case 4:
+                        mostrarAutoresSegunAnio();
+                        break;
+                    case 5:
+                        mostrarLibrosSegunIdioma();
+                        break;
+                    case 6:
+                        estadisticas();
+                        break;
+                    case 7:
+                        top5();
+                        break;
+                    case 8:
+                        buscarAutor();
+                        break;
+                    default:
+                        System.out.println("Error, ingrese una opción valida");
+                        break;
+                }
+            }catch (Exception e){
+                System.out.println("Digite un valor valido");
             }
-
         }
     }
+
+
+
 
     public void consumirApi(){
         vista.solicitarNombreLibro();
-        var nombreLibro=teclado.nextLine();
-        var libroEncontrado=libroService.comprobarExistenciaLibro(nombreLibro);
-        if(libroEncontrado==null){
-            String json= consumoAPI.obtenerDatos(URL_BASE);
-            var datos=conversor.obtenerDatos(json, Datos.class);
-            System.out.println(json);
-            System.out.println("Datos:");
-            ListaLibros=datos.libros().stream().collect(Collectors.toList());
-            System.out.println(ListaLibros);
+        String libro=teclado.nextLine();
+        libro=libro.replace(" ","+");
+        System.out.println(libro);
+        Optional<Libro> libroConsultado =libroRepository.findByTituloContainsIgnoreCase(libro);
+
+        if(libroConsultado.isEmpty()){
+            var libroBuscadoApi=consumoAPI.obtenerDatos(URL_BUSQUEDA+libro);
+            try{
+                var datos=conversor.obtenerDatos(libroBuscadoApi,Datos.class);
+                manejoDeDatos(datos);
+            }catch (IndexOutOfBoundsException e){
+                System.out.println("El libro no fue encontrado, verifique el nombre");
+            }
         }else{
-            System.out.println(libroEncontrado);
+            System.out.println("El libro ya se encuentra almacenado");
+            System.out.println(libroConsultado.get());
+        }
+    }
+    public void manejoDeDatos(Datos datos){
+        System.out.println(datos);
+        DatosLibros datosL=datos.libros().get(0);
+        System.out.println("DatosLibro");
+        System.out.println(datosL);
+        Libro libro=new Libro(datosL);
+        Autor autor=new Autor(datosL.autor().get(0));
+        validarAutor(libro,autor);
+    }
+
+    public void validarAutor(Libro libro, Autor autor) {
+        String nombreAutor = autor.getNombre();
+
+        // Verificar si el autor ya existe
+        Optional<Autor> autorBuscado = autorRepository.findByNombreContainsIgnoreCase(nombreAutor);
+
+        if (autorBuscado.isPresent()) {
+            // El autor ya existe, así que lo usamos
+            libro.setAutor(autorBuscado.get());
+        } else {
+            // El autor no existe, guardamos primero el nuevo autor
+            Autor autorGuardado = autorRepository.save(autor);
+            libro.setAutor(autorGuardado);
+        }
+
+        // Ahora guardamos el libro con el autor asociado (existente o nuevo)
+        libroRepository.save(libro);
+    }
+
+    private void mostrarTodosLosLibros() {
+        listaLibros=libroRepository.findAll();
+        listaLibros.forEach(System.out::println);
+        detenerHilo5Segundos();
+    }
+    private void mostrarTodosLosAutores(){
+        listaAutores=autorRepository.findAll();
+        listaAutores.forEach(System.out::println);
+        detenerHilo5Segundos();
+    }
+    private void mostrarAutoresSegunAnio(){
+        System.out.println("Ingrese el año:");
+        int anio=teclado.nextInt();
+        List<Autor> listaAutoresVivos= autorRepository.encontrarAutoresVivosEnAno(anio);
+        if (listaAutoresVivos!=null){
+            listaAutoresVivos.forEach(System.out::println);
+        }else {
+            System.out.println("No hay autores vivos en este determinado año");
+        }
+        detenerHilo5Segundos();
+    }
+    private void mostrarLibrosSegunIdioma() {
+        vista.solicitarLenguaje();
+        String idioma=teclado.nextLine();
+        listaLibros=libroRepository.findByLenguajes(idioma);
+        if(listaLibros!=null){
+            listaLibros.forEach(System.out::println);
+        }else {
+            System.out.println("No se encontro ningun libro con el idioma seleccionado");
+        }
+        detenerHilo5Segundos();
+    }
+    private void detenerHilo5Segundos(){
+        try {
+            Thread.sleep(4000);
+        }catch (Exception e){
+            System.out.println("No se puede esperar");
         }
     }
     public void top5(){
-        System.out.println("Top 10 libros más descargados:");
-        List<String>TopLibros= ListaLibros.stream()
-                .sorted(Comparator.comparing(DatosLibros::numeroDescargas).reversed())
-                .limit(10).map(DatosLibros::titulo).collect(Collectors.toList());
-        TopLibros.stream().forEach(System.out::println);
+        System.out.println("Top 5 libros más descargados:");
+        listaLibros=libroRepository.findTop5Libros();
+        listaLibros.forEach(System.out::println);
     }
 
-    public void busquedaLibro(){
-
-        //Busqueda en base a los datos del json
-        String libroConsultado="";
-        Optional<DatosLibros> libroBuscado=ListaLibros.stream()
-                .filter(e-> e.titulo().toUpperCase()
-                        .equals(libroConsultado.toUpperCase())).findFirst();
-        //Busqueda por medio de la API
-        var libroBuscadoApi=consumoAPI.obtenerDatos(URL_BUSQUEDA+libroConsultado);
-        var datosLista=conversor.obtenerDatos(libroBuscadoApi,Datos.class);
-
-        if(libroBuscado.isPresent() ){
-            System.out.println("Libro Encontrado");
-            System.out.println("El libro es: "+libroBuscado.get());
-        }else if(datosLista.contador()>0) {
-            System.out.println("Libro Encontrado, total de coincidencias: "+datosLista.contador());
-            System.out.println(datosLista);
+    private void buscarAutor() {
+        System.out.println("Digite el nombre del autor");
+        String nombreAutor=teclado.nextLine();
+        listaAutores=autorRepository.findByNombre(nombreAutor);
+        if(listaAutores!=null){
+            listaAutores.forEach(System.out::println);
         }else {
-            System.out.println("Libro no encontrado");
+            System.out.println("El autor no fue encontrado en nuestra base de datos");
         }
+        detenerHilo5Segundos();
     }
     public void estadisticas(){
-        DoubleSummaryStatistics est= ListaLibros.stream().collect(Collectors.summarizingDouble(DatosLibros::numeroDescargas));
+        listaLibros=libroRepository.findAll();
+        DoubleSummaryStatistics est= listaLibros.stream().collect(Collectors.summarizingDouble(Libro::getNumeroDescargas));
         System.out.println("Media de las descargas: "+est.getAverage());
         System.out.println("Numero mayor de descargas: "+est.getMax());
         System.out.println("Numero menor de descargas: "+est.getMin());
         System.out.println("Total de descargas: "+est.getSum());
         System.out.println("Total registros valorados: "+est.getCount());
+        detenerHilo5Segundos();
     }
 }

@@ -2,6 +2,7 @@ package com.aluracursos.gutendexapi.models;
 
 import jakarta.persistence.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Entity
@@ -12,24 +13,24 @@ public class Libro {
     private long id;
     @Column(unique = true)
     String titulo;
-    @ManyToMany(cascade = CascadeType.ALL)
-    @JoinTable(
-            name = "Libro_Autor",
-            joinColumns = @JoinColumn(name="libro_id"),
-            inverseJoinColumns=@JoinColumn(name="autor_id")
-    )
-    List<Autor> autores;
-    List<String> lenguajes;
+    @ManyToOne()
+    private Autor autor;
+    String nombreAutor;
+    String lenguajes;
     Double numeroDescargas;
     public Libro(){
 
     }
-    public Libro(String titulo, List<Autor> autores, List<String> lenguajes, Double numeroDescargas) {
-        this.titulo = titulo;
-        this.autores = autores;
-        this.lenguajes = lenguajes;
-        this.numeroDescargas = numeroDescargas;
+    public Libro(DatosLibros datosLibros) {
+        this.titulo = datosLibros.titulo();
+        this.nombreAutor=datosLibros.autor().stream()
+                .findFirst()  // Obtiene el primer autor si existe
+                .map(DatosAutor::nombre)  // Transforma al nombre del autor
+                .orElse("Autor Desconocido");
+        this.lenguajes = datosLibros.lenguajes().toString().replace("[","").replace("]","");
+        this.numeroDescargas = datosLibros.numeroDescargas();
     }
+
 
     public long getId() {
         return id;
@@ -47,19 +48,19 @@ public class Libro {
         this.titulo = titulo;
     }
 
-    public List<Autor> getAutores() {
-        return autores;
+    public Autor getAutor() {
+        return autor;
     }
 
-    public void setAutores(List<Autor> autores) {
-        this.autores = autores;
+    public void setAutor(Autor autor) {
+        this.autor = autor;
     }
 
-    public List<String> getLenguajes() {
+    public String getLenguajes() {
         return lenguajes;
     }
 
-    public void setLenguajes(List<String> lenguajes) {
+    public void setLenguajes(String lenguajes) {
         this.lenguajes = lenguajes;
     }
 
@@ -70,4 +71,15 @@ public class Libro {
     public void setNumeroDescargas(Double numeroDescargas) {
         this.numeroDescargas = numeroDescargas;
     }
+
+    @Override
+    public String toString() {
+        return  "-------LIBRO-------"+"\n" +
+                "Titulo:" + titulo + "\n" +
+                "Autor:" + nombreAutor + '\n' +
+                "Idioma:" + lenguajes + '\n' +
+                "Numero de descargas:" + numeroDescargas +'\n' +
+                "-------------------"+"\n";
+    }
+
 }
